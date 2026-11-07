@@ -4,11 +4,37 @@ Fetch a public web page and extract structured data from it, with SSRF protectio
 
 ## Overview
 
-SwiftWebScraper is a scaffold. The implementation is being extracted from geo-audit's
-`WebScraper` target; see the extraction design proposal under `project/plans/proposals/`.
+SwiftWebScraper is the fetching and extraction core. It does not decide what to do with a
+page: it returns the page's metadata, headings, links and JSON-LD, plus the site-level files
+that sit beside it (`robots.txt`, sitemaps, `llms.txt`). Callers compose these into whatever
+model they need.
+
+Every request made through ``URLSessionHTTPClient`` is checked by ``URLValidator`` first.
+That check is on the hostname as written; see the limits listed in the project README.
 
 ## Topics
 
-### Namespace
+### Fetching
 
-- ``SwiftWebScraper``
+- ``HTTPClientProtocol``
+- ``URLSessionHTTPClient``
+- ``HTTPResponse``
+- ``URLValidator``
+
+### Extracting a page
+
+- ``HTMLExtractor``
+- ``ExtractedHTML``
+- ``HeadingStructure``
+- ``LinkSummary``
+- ``JSONValue``
+
+### Site-level files
+
+- ``SpecialFilesFetcher``
+- ``SpecialFiles``
+- ``SitemapParser``
+
+### Errors
+
+- ``ScraperError``

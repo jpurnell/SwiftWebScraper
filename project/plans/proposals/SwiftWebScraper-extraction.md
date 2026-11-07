@@ -1,6 +1,6 @@
 # Design Proposal: Extract `WebScraper` from geo-audit into `SwiftWebScraper`
 
-**Status:** Draft — awaiting review
+**Status:** Approved 2026-11-07 — core extracted as `0.1.0`; geo-audit migration in progress
 **Author:** Justin Purnell / Claude
 **Date:** 2026-11-02
 **Source:** `geo-audit/Sources/WebScraper` (1,191 lines, 11 files, own test target)
@@ -42,7 +42,10 @@ Two layers, so the package is useful without the audit-shaped model.
 | **Core** | `HTTPClientProtocol`, `URLSessionHTTPClient`, `URLValidator`, `ScraperError`, `SpecialFilesFetcher`, `SitemapParser`, `HTMLExtractor`, `ExtractedHTML` | No GEO vocabulary. |
 | **Audit model** | `ScrapedSiteData`, `CrawledSiteData`, `CrawlDepth`, `SubpageData`, `WebScraper` (orchestrator) | Carries `llmsTxt`, JSON-LD, heading structure, platform links. |
 
-Open question 1 is whether the audit model ships in this package or stays in geo-audit.
+**Decision (2026-11-07, Justin): the audit model stays in geo-audit.** `ScrapedSiteData`,
+`CrawledSiteData`, `CrawlDepth`, `SubpageData` and the `WebScraper` orchestrator that builds them
+are geo-audit's, not this package's. The package keeps `ExtractedHTML`, `HeadingStructure`,
+`LinkSummary` and `SpecialFiles`, which are what the extractor and fetcher return.
 
 **Dependencies to cut:** `MCPClient`. Grep shows the only use is `AnyCodableValue`
 (JSON-LD storage) in `HTMLExtractor.swift` and `ScrapedSiteData.swift`. The package
@@ -107,7 +110,7 @@ before publishing — today `URLSession.shared` defaults apply and no body cap e
 |------------|-----|--------|
 | SwiftSoup | HTML parsing | In use |
 | swift-log | Diagnostics | In use |
-| ~~MCPClient~~ | ~~`AnyCodableValue`~~ | **Remove** |
+| ~~MCPClient~~ | ~~`AnyCodableValue`~~ | **Removed** — replaced by the package's own `JSONValue` |
 
 ## 11. Test Strategy (first pass)
 
@@ -149,7 +152,7 @@ requests / caching, per-host rate limiting.
 
 ## 16. Open Questions
 
-1. Does the audit model (`ScrapedSiteData` and friends) ship in this package, or stay in geo-audit?
+1. ~~Does the audit model ship in this package, or stay in geo-audit?~~ **Stays in geo-audit** (decided 2026-11-07, separation of concerns).
 2. Name: `SwiftWebScraper` follows the workspace's `Swift*` convention (`SwiftMCPClient`,
    `SwiftHTTPService`). Confirm, and confirm the repo is private first.
 3. Is `SwiftHTTPService` (an HTTP *server* package) relevant, or only a name neighbor? Not checked.
@@ -179,3 +182,12 @@ fences are checked by the gate's `doc-code` checker; keep them compiling. Add a
 - [ ] SSRF stance (§6) decided
 - [ ] Dependency removal (§10) confirmed feasible
 - [ ] Repo created and private before first push
+
+## Outcome notes (2026-11-07)
+
+- `ScraperError.timeout` was dropped: nothing threw it, and it survived only as a stand-in error in tests.
+- The 9 `// silent:` annotations on `try?` calls in `HTMLExtractor` and `URLValidator` were replaced
+  with real code (a logging `query` helper; a non-throwing `rejection(for:)`), not carried over.
+- `JSONValue` cannot use a narrow `catch DecodingError...`: decoding `4.5` as `Int` surfaces from
+  inside the container as an internal `JSONError`, so a misfit is detected by any failure.
+- The §6 SSRF gaps were **not** fixed in `0.1.0`; they are documented in the README.
