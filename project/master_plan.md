@@ -1,9 +1,5 @@
 # SwiftWebScraper Master Plan
 
-> **ACTION REQUIRED:** Replace all `[PLACEHOLDER]` sections below with your
-> project's actual content. This file is the source of truth for project vision,
-> architecture, and goals. Do not start implementation until it is filled in.
-
 **Purpose:** Source of truth for project vision, architecture, and goals.
 
 ---
@@ -11,13 +7,15 @@
 ## Project Overview
 
 ### Mission
-[1-2 sentences: what this project does and why it exists.]
+Fetch a public web page, extract structured data from it, and retrieve the site-level files beside it (`robots.txt`, sitemaps, `llms.txt`), with SSRF protection on every request. Extracted from geo-audit so the fetching core has one owner and one test suite.
 
 ### Target Users
-- [Who uses this? Be specific about roles and contexts.]
+- Swift services that audit or index other people's sites: geo-audit today; GeoSEOMCP and project-showcase are candidates.
 
 ### Key Differentiators
-- [What makes this different from alternatives?]
+- Keeps the transport error when a fetch fails, instead of reporting an opaque status of 0.
+- Takes an injectable `HTTPClientProtocol`, so callers choose the transport and tests need no network.
+- Does not decide what a page means: the audit model stays with the caller.
 
 ---
 

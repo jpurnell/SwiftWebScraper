@@ -23,3 +23,10 @@ across unchanged from geo-audit and are tracked in the design proposal (section 
 ## Requirements
 
 Swift 6.x, macOS or Linux.
+
+## Known issue: `URLSessionHTTPClient` on Linux
+
+geo-audit's production client (`NIOHTTPClient`, AsyncHTTPClient-based) documents that it replaced
+`URLSessionHTTPClient` "to avoid FoundationNetworking/libcurl crashes on Linux". The default client
+here is that `URLSession` one, so on Linux inject your own `HTTPClientProtocol` and call
+`URLValidator.validatePublicURL` in it, as geo-audit does. Not yet reproduced in this package.
