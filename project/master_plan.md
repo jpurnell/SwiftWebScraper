@@ -26,46 +26,59 @@ Fetch a public web page, extract structured data from it, and retrieve the site-
 - **Build System:** Swift Package Manager
 - **Testing:** Swift Testing framework
 - **Concurrency:** Swift 6 strict concurrency throughout
-- [Add frameworks: SwiftUI, SwiftData, Vapor, etc.]
-- [Add dependencies: BusinessMath, etc.]
+- **Dependencies:** SwiftSoup (HTML parsing), swift-log
 
 ### Module Structure
 
 ```
-Sources/[ProjectName]/
-├── [Describe your source layout here]
-└── ...
+Sources/SwiftWebScraper/
+├── HTTPClient.swift          HTTPClientProtocol, HTTPResponse, URLSessionHTTPClient
+├── URLValidator.swift        SSRF host check
+├── HTMLExtractor.swift       page -> ExtractedHTML
+├── ExtractedHTML.swift       ExtractedHTML, HeadingStructure, LinkSummary
+├── SpecialFilesFetcher.swift robots.txt / sitemap.xml / llms.txt / ai.txt
+├── SpecialFiles.swift        SpecialFiles
+├── SitemapParser.swift       sitemap and sitemap-index parsing
+├── JSONValue.swift           JSON-LD carrier type
+└── ScraperError.swift
 ```
 
 ### Key Types
 
 | Type | Purpose |
 |------|---------|
-| `[TypeName]` | [What it does] |
+| `HTTPClientProtocol` | The transport seam; inject your own |
+| `URLValidator` | Rejects private, loopback and link-local hosts |
+| `HTMLExtractor` | Turns HTML into `ExtractedHTML` |
+| `SpecialFilesFetcher` | Fetches the site-level files beside a page |
+| `ScraperError` | Failures, keeping the underlying cause |
 
 ### Data Flow
 
 ```
-[Describe the primary data pipeline from input to output]
+URL -> URLValidator -> HTTPClientProtocol.fetch -> HTMLExtractor -> ExtractedHTML
+base URL -> SpecialFilesFetcher -> SpecialFiles
 ```
 
 ---
 
 ## Core Architectural Decisions
 
-1. [Decision 1 — what you chose and why.]
-2. [Decision 2]
-3. [Add more as needed]
+1. The audit model stays with the caller (decided 2026-11-07): this package returns what it found and does not interpret it.
+2. `JSONValue` is owned here so the package needs no MCP client.
+3. SSRF limits are documented rather than hidden; see the README and the design proposal.
 
 ---
 
 ## Current Status
 
 ### What's Working
-- [ ] [List completed milestones]
+- [x] Core extracted from geo-audit as 0.x (36 tests)
 
 ### What's Next
-- [ ] [List upcoming work items]
+- [ ] Resolve the SSRF gaps (DNS resolution, redirect re-validation, `fc`/`fd` hostname false positives)
+- [ ] Response size and timeout limits on the default client
+- [ ] Reproduce and fix or replace the Linux `URLSession` client
 
 ---
 
