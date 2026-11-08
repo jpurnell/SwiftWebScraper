@@ -40,4 +40,20 @@ struct LiveNetworkTests {
             }
         }
     }
+
+    @Test("Concurrent fetches through the default client all complete")
+    func concurrentFetches() async throws {
+        let url = try #require(URL(string: "https://example.com"))
+        let client = URLSessionHTTPClient()
+        let statuses = try await withThrowingTaskGroup(of: Int.self, returning: [Int].self) { group in
+            for _ in 0..<40 {
+                group.addTask { try await client.fetch(url: url).statusCode }
+            }
+            var collected: [Int] = []
+            for try await status in group { collected.append(status) }
+            return collected
+        }
+        #expect(statuses.count == 40)
+        #expect(statuses.allSatisfy { $0 == 200 })
+    }
 }
