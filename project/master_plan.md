@@ -81,7 +81,7 @@ base URL -> SpecialFilesFetcher -> SpecialFiles
 ### What's Next
 - [x] Resolve the SSRF gaps (DNS resolution, redirect re-validation, `fc`/`fd` hostname false positives) — shipped 0.2.0; DNS rebinding between check and connect remains and is documented
 - [ ] Response size and timeout limits on the default client
-- [ ] Reproduce and fix or replace the Linux `URLSession` client
+- [x] Reproduce and fix or replace the Linux `URLSession` client — not reproduced: Linux CI (Swift 6.2.4) passes single, refused, unresolvable and 40-concurrent fetches; the original crash was never recorded
 
 ---
 
@@ -128,4 +128,4 @@ This principle is operationalized in the **Adversarial Review** step of `design_
 
 ---
 
-**Last Updated:** 2026-11-08 (SSRF gaps fixed in 0.2.0; resolver, redirect follower and address classifier added)
+**Last Updated:** 2026-11-08 (SSRF gaps fixed in 0.2.0; Linux client checked in CI, crash not reproduced)

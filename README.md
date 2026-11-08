@@ -42,9 +42,13 @@ A custom `HTTPClientProtocol` is not validated unless it calls `RedirectFollower
 
 Swift 6.x, macOS or Linux.
 
-## Known issue: `URLSessionHTTPClient` on Linux
+## `URLSessionHTTPClient` on Linux
 
-geo-audit's production client (`NIOHTTPClient`, AsyncHTTPClient-based) documents that it replaced
-`URLSessionHTTPClient` "to avoid FoundationNetworking/libcurl crashes on Linux". The default client
-here is that `URLSession` one, so on Linux inject your own `HTTPClientProtocol` and call
-`URLValidator.validatePublicURL` in it, as geo-audit does. Not yet reproduced in this package.
+geo-audit's production client (`NIOHTTPClient`, AsyncHTTPClient-based) says it replaced
+`URLSessionHTTPClient` "to avoid FoundationNetworking/libcurl crashes on Linux". The original crash
+was never recorded, so it could not be reproduced from the description. CI runs this package's
+tests on Linux (`swift:6.2-jammy`, Swift 6.2.4) with the live-network suite enabled: single fetches,
+refusal of loopback, unresolvable names, and 40 concurrent fetches through one client all pass.
+That is evidence the current client works there, not proof the old crash cannot recur on another
+toolchain or under a heavier load. If you hit it, inject an `HTTPClientProtocol` built on
+AsyncHTTPClient and route it through `RedirectFollower.fetch`, as geo-audit does.

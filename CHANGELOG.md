@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Concurrent-fetch live test; Linux CI shows the default client passing it on Swift 6.2.4.
+
 ## [0.2.0] - 2026-11-08
 
 ### Security
