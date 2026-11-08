@@ -33,7 +33,10 @@ Fetch a public web page, extract structured data from it, and retrieve the site-
 ```
 Sources/SwiftWebScraper/
 ├── HTTPClient.swift          HTTPClientProtocol, HTTPResponse, URLSessionHTTPClient
-├── URLValidator.swift        SSRF host check
+├── URLValidator.swift        SSRF host check (string and resolving)
+├── IPAddress.swift           parsed address + public/non-public classification
+├── HostResolver.swift        HostResolver, SystemHostResolver (getaddrinfo)
+├── RedirectFollower.swift    hop-by-hop redirect validation
 ├── HTMLExtractor.swift       page -> ExtractedHTML
 ├── ExtractedHTML.swift       ExtractedHTML, HeadingStructure, LinkSummary
 ├── SpecialFilesFetcher.swift robots.txt / sitemap.xml / llms.txt / ai.txt
@@ -76,7 +79,7 @@ base URL -> SpecialFilesFetcher -> SpecialFiles
 - [x] Core extracted from geo-audit as 0.x (36 tests)
 
 ### What's Next
-- [ ] Resolve the SSRF gaps (DNS resolution, redirect re-validation, `fc`/`fd` hostname false positives)
+- [x] Resolve the SSRF gaps (DNS resolution, redirect re-validation, `fc`/`fd` hostname false positives) — shipped 0.2.0; DNS rebinding between check and connect remains and is documented
 - [ ] Response size and timeout limits on the default client
 - [ ] Reproduce and fix or replace the Linux `URLSession` client
 
@@ -125,4 +128,4 @@ This principle is operationalized in the **Adversarial Review** step of `design_
 
 ---
 
-**Last Updated:** [DATE] ([brief note on what changed])
+**Last Updated:** 2026-11-08 (SSRF gaps fixed in 0.2.0; resolver, redirect follower and address classifier added)

@@ -191,3 +191,6 @@ fences are checked by the gate's `doc-code` checker; keep them compiling. Add a
 - `JSONValue` cannot use a narrow `catch DecodingError...`: decoding `4.5` as `Int` surfaces from
   inside the container as an internal `JSONError`, so a misfit is detected by any failure.
 - The §6 SSRF gaps were **not** fixed in `0.1.0`; they are documented in the README.
+- **Update 2026-11-08:** the three §6 SSRF gaps were fixed in `0.2.0` (DNS resolution, hop-by-hop redirect
+  validation, `fc`/`fd` false positives), red tests first. DNS rebinding between check and connect is not
+  closed and is documented as a limit.

@@ -30,4 +30,35 @@ struct URLValidatorTests {
     func notAURL() {
         #expect(URLValidator.validatedURL("") == nil)
     }
+
+    @Test("Hostnames that merely start with fc or fd are not mistaken for IPv6 unique-local", arguments: [
+        "https://fcc.gov", "https://fdic.gov", "https://fda.gov"
+    ])
+    func acceptsFcFdHostnames(_ string: String) {
+        #expect(URLValidator.validatedURL(string)?.absoluteString == string)
+    }
+
+    @Test("Reserved addresses beyond the common private ranges are rejected", arguments: [
+        "https://[fc00::1]", "https://[fd12:3456::1]", "https://[fe80::1]", "https://[::1]",
+        "https://[::ffff:127.0.0.1]", "https://[::ffff:10.0.0.1]", "https://[64:ff9b::a00:1]",
+        "https://100.64.0.1", "https://198.18.0.1", "https://192.0.0.1", "https://224.0.0.1",
+        "https://255.255.255.255", "https://sub.localhost", "https://printer.local"
+    ])
+    func rejectsReserved(_ string: String) {
+        #expect(URLValidator.validatedURL(string) == nil)
+    }
+
+    @Test("Alternate spellings of loopback are rejected", arguments: [
+        "https://2130706433", "https://0x7f.0.0.1", "https://0177.0.0.1", "https://127.1"
+    ])
+    func rejectsAlternateLoopback(_ string: String) {
+        #expect(URLValidator.validatedURL(string) == nil)
+    }
+
+    @Test("Public IP literals are accepted", arguments: [
+        "https://8.8.8.8", "https://[2606:4700:4700::1111]"
+    ])
+    func acceptsPublicLiterals(_ string: String) {
+        #expect(URLValidator.validatedURL(string)?.absoluteString == string)
+    }
 }

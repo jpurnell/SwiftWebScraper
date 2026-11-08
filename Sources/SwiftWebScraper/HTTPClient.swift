@@ -26,14 +26,39 @@ public protocol HTTPClientProtocol: Sendable {
 }
 
 /// Default HTTP client using URLSession.
+///
+/// Every request, and every redirect it is sent through, is validated with
+/// ``URLValidator/validateResolvingHost(of:using:)`` before it is made. URLSession's own redirect
+/// handling is switched off so ``RedirectFollower`` can do that checking.
 public struct URLSessionHTTPClient: HTTPClientProtocol, Sendable {
-    /// Creates a new URLSession-based HTTP client.
-    public init() {}
+    private let maxRedirects: Int
+    private let timeout: TimeInterval
 
-    /// Fetch the contents of the given URL via URLSession.
+    /// Creates a new URLSession-based HTTP client.
+    ///
+    /// - Parameters:
+    ///   - maxRedirects: The most redirects to follow. Default 5.
+    ///   - timeout: Per-request timeout in seconds. Default 30.
+    public init(maxRedirects: Int = 5, timeout: TimeInterval = 30) {
+        self.maxRedirects = maxRedirects
+        self.timeout = timeout
+    }
+
+    /// Fetch the contents of the given URL via URLSession, following only safe redirects.
     public func fetch(url: URL) async throws -> HTTPResponse {
-        try URLValidator.validatePublicURL(url)
-        let (data, response) = try await URLSession.shared.data(from: url)
+        let timeout = self.timeout
+        return try await RedirectFollower.fetch(url, maxRedirects: maxRedirects) { hop in
+            try await Self.singleRequest(to: hop, timeout: timeout)
+        }
+    }
+
+    private static func singleRequest(to url: URL, timeout: TimeInterval) async throws -> HTTPResponse {
+        let session = URLSession(configuration: .ephemeral, delegate: RedirectRefuser(), delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ScraperError.fetchFailed(url: url.absoluteString, statusCode: 0)
@@ -51,5 +76,18 @@ public struct URLSessionHTTPClient: HTTPClientProtocol, Sendable {
             headers: headers,
             body: data
         )
+    }
+}
+
+/// Answers every redirect with "do not follow", so the 3xx response comes back to the caller.
+private final class RedirectRefuser: NSObject, URLSessionTaskDelegate, Sendable {
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping @Sendable (URLRequest?) -> Void
+    ) {
+        completionHandler(nil)
     }
 }

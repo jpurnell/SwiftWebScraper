@@ -8,17 +8,35 @@ files beside it (`robots.txt`, sitemaps, `llms.txt`), with SSRF protection on ev
 
 ## What it does
 
-- `URLSessionHTTPClient` fetches a URL after `URLValidator` rejects private, loopback and link-local hosts.
+- `URLSessionHTTPClient` fetches a URL once `URLValidator` and `RedirectFollower` have vetted it and each redirect.
 - `HTMLExtractor` returns title, meta tags, headings, links, word count and JSON-LD (`JSONValue`).
 - `SpecialFilesFetcher` retrieves `robots.txt`, `sitemap.xml`, `llms.txt` and `ai.txt`, plus sitemaps that `robots.txt` references.
 - `ScraperError.networkError` keeps the transport error, so a failed fetch says why.
 
-## Known limits of the SSRF check
+## SSRF protection
 
-`URLValidator` inspects the hostname **as written**. It does not resolve DNS, so a public name that
-resolves to a private address passes, and it does not re-check redirect targets. Its `fc`/`fd`
-prefix test for IPv6 unique-local addresses also matches hostnames such as `fcc.gov`. These came
-across unchanged from geo-audit and are tracked in the design proposal (section 6).
+`URLSessionHTTPClient` checks every request, and every redirect it is sent through, before connecting:
+
+- The scheme must be `http` or `https`.
+- IP literals are judged by address, in every spelling a resolver accepts (`2130706433`,
+  `0x7f.0.0.1`, `127.1`, bracketed IPv6, IPv4-mapped and NAT64 forms). Loopback, private,
+  link-local, carrier-grade NAT, documentation, multicast and reserved ranges are refused.
+- Hostnames are **resolved**, and refused if any address they resolve to is non-public.
+- Redirects are followed one hop at a time by `RedirectFollower`, each destination validated
+  before it is requested, with a limit of 5.
+
+`URLValidator.validatedURL(_:)` and `validatePublicURL(_:)` remain string-only checks with no DNS
+lookup. They suit filtering a list of links; use `validateResolvingHost(of:using:)` before an
+actual request.
+
+**Not covered: DNS rebinding.** The check resolves the name, then the HTTP client resolves it again
+when it connects. A resolver that answers differently the second time can still get a request
+through. Closing that needs the client to connect to the address that was validated, which
+`URLSession` does not allow. If your threat model includes a hostile DNS server, run the scraper
+where private addresses are unreachable (network policy), as well as relying on this check.
+
+A custom `HTTPClientProtocol` is not validated unless it calls `RedirectFollower.fetch` or
+`URLValidator.validateResolvingHost` itself.
 
 ## Requirements
 

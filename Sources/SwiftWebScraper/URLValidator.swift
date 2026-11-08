@@ -26,6 +26,37 @@ public enum URLValidator {
         }
     }
 
+    /// Validates a URL and checks that its hostname does not resolve to a non-public address.
+    ///
+    /// Runs every check ``validatePublicURL(_:)`` does, then resolves the host and rejects the URL
+    /// if *any* address it resolves to is private or reserved. This is what stops a public-looking
+    /// name that points at `10.0.0.5` or `169.254.169.254`.
+    ///
+    /// This is a check, not a connection pin: the HTTP client resolves the name again when it
+    /// connects, so a resolver that answers differently the second time (DNS rebinding) can still
+    /// get through. See the README's security notes.
+    ///
+    /// - Parameters:
+    ///   - url: The URL to validate.
+    ///   - resolver: How to resolve the host. Defaults to the system resolver.
+    /// - Throws: ``ScraperError/unsafeURL(_:reason:)`` if the URL or any resolved address is unsafe,
+    ///   or ``ScraperError/networkError(url:underlying:)`` if the host does not resolve.
+    public static func validateResolvingHost(
+        of url: URL,
+        using resolver: any HostResolver = SystemHostResolver()
+    ) async throws {
+        try validatePublicURL(url)
+        guard let host = url.host?.lowercased(), IPAddress.parse(host) == nil else { return }
+
+        let addresses = try await resolver.resolve(host)
+        guard !addresses.isEmpty else {
+            throw ScraperError.networkError(url: url.absoluteString, underlying: "DNS resolution returned no addresses")
+        }
+        if addresses.contains(where: { !$0.isPublic }) {
+            throw ScraperError.unsafeURL(url.absoluteString, reason: "Host resolves to a private or reserved address")
+        }
+    }
+
     // MARK: - Private
 
     private static func rejection(for url: URL) -> ScraperError? {
@@ -45,38 +76,15 @@ public enum URLValidator {
     }
 
     private static func isRestricted(_ host: String) -> Bool {
-        // Localhost variants
-        if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]" {
-            return true
+        // IP literals, including legacy spellings (decimal, hex, octal) of IPv4, are judged by address.
+        if let address = IPAddress.parse(host) {
+            return !address.isPublic
         }
 
-        // IPv4 loopback range 127.x.x.x
-        if host.hasPrefix("127.") { return true }
-
-        // IPv4 private ranges
-        if host.hasPrefix("10.") { return true }
-        if host.hasPrefix("192.168.") { return true }
-        if host.hasPrefix("172.") {
-            let octets = host.split(separator: ".")
-            if octets.count >= 2, let second = Int(octets[1]), (16...31).contains(second) {
-                return true
-            }
-        }
-
-        // Unspecified address
-        if host == "0.0.0.0" || host.hasPrefix("0.") { return true }
-
-        // Link-local
-        if host.hasPrefix("169.254.") { return true }
-        if host.hasPrefix("fe80:") || host.hasPrefix("[fe80:") { return true }
-
-        // Cloud metadata endpoints
-        if host == "metadata.google.internal" { return true }
-
-        // IPv6 unique local (fc00::/7)
-        if host.hasPrefix("fc") || host.hasPrefix("fd") { return true }
-        if host.hasPrefix("[fc") || host.hasPrefix("[fd") { return true }
-
+        // Names that never name a public host.
+        if host == "localhost" || host.hasSuffix(".localhost") { return true }
+        if host.hasSuffix(".local") || host.hasSuffix(".internal") { return true }
+        if host.contains("%") { return true }
         return false
     }
 }
